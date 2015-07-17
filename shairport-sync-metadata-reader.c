@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <dirent.h>
 
 
 // From Stack Overflow, with thanks:
@@ -137,6 +138,8 @@ int main(void) {
   
   initialise_decoding_table();
 
+  mkdir("/tmp/shairport-sync", 0755);
+
   /* Watch stdin (fd 0) to see when it has input. */
   FD_ZERO(&rfds);
   FD_SET(0, &rfds);
@@ -194,10 +197,19 @@ int main(void) {
                 int inputlength=32678;
                 if (b64size<inputlength)
                   inputlength=b64size;
-                outputlength=32768;
+                  outputlength=32768;
                 if (base64_decode(b64buf,inputlength,payload,&outputlength)!=0) {
                   printf("Failed to decode it.\n");
                 }
+              } else {
+                FILE *f = fopen("/tmp/shairport-sync/image", "w");
+                if (f == NULL)
+                {
+                  printf("Can't open the file to write!\n");
+                  exit(1);
+                }
+                fprintf(f, "%s", b64buf);
+                fclose(f);
               }
             }
             free(b64buf);
@@ -218,30 +230,51 @@ int main(void) {
       switch (code) {
         case 'asal':
           printf("Album Name: \"%s\".\n",payload);
+          FILE *g = fopen("/tmp/shairport-sync/album", "w");
+          fprintf(g, "%s", payload);
+          fclose(g);
           break;
         case 'asar':
           printf("Artist: \"%s\".\n",payload);
+          FILE *h = fopen("/tmp/shairport-sync/artist", "w");
+          fprintf(h, "%s", payload);
+          fclose(h);
           break;
         case 'ascm':
           printf("Comment: \"%s\".\n",payload);
+          FILE *i = fopen("/tmp/shairport-sync/comment", "w");
+          fprintf(i, "%s", payload);
+          fclose(i);
           break;
         case 'asgn':
           printf("Genre: \"%s\".\n",payload);
+          FILE *j = fopen("/tmp/shairport-sync/genre", "w");
+          fprintf(j, "%s", payload);
+          fclose(j);
           break;
         case 'minm':
           printf("Title: \"%s\".\n",payload);
+          FILE *k = fopen("/tmp/shairport-sync/title", "w");
+          fprintf(k, "%s", payload);
+          fclose(k);
           break;
         case 'ascp':
           printf("Composer: \"%s\".\n",payload);
+          FILE *l = fopen("/tmp/shairport-sync/composer", "w");
+          fprintf(l, "%s", payload);
+          fclose(l);
           break;                    
         case 'asdt':
           printf("File kind: \"%s\".\n",payload);
+          FILE *m = fopen("/tmp/shairport-sync/kind", "w");
+          fprintf(m, "%s", payload);
+          fclose(m);
           break;  
         case 'assn':                
           printf("Sort as: \"%s\".\n",payload);
           break;
         case 'PICT':
-          printf("Picture received, length %u bytes.\n",length);    
+          printf("Picture received, length %u bytes.\n",length);
           break;               
         default: if (type=='ssnc') {
             char typestring[5];
@@ -251,6 +284,28 @@ int main(void) {
             *(uint32_t*)codestring = htonl(code);
             codestring[4]=0;
             printf("\"%s\" \"%s\": \"%s\".\n",typestring,codestring,payload);
+            if (code=='snam') {
+              FILE *n = fopen("/tmp/shairport-sync/sender", "w");
+              fprintf(n, "%s", payload);
+              fclose(n);
+            }
+            if (code=='snua') {
+              FILE *n = fopen("/tmp/shairport-sync/useragent", "w");
+              fprintf(n, "%s", payload);
+              fclose(n);
+            }
+            if (code=='pend') {
+              DIR *outputDir = opendir("/tmp/shairport-sync");
+              struct dirent *next_file;
+              char filepath[256];
+
+              while ( (next_file = readdir(outputDir)) != NULL ) {
+                // build the path for each file in the folder
+                sprintf(filepath, "%s/%s", "/tmp/shairport-sync", next_file->d_name);
+                remove(filepath);
+              }
+              
+            }
           }
        }
      } 
